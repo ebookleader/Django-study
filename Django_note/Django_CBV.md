@@ -92,7 +92,7 @@ class Student(models.Model):
     <h2><li><a href="{{school.id}}">{{school.name}}</a></li></h2>
 {% endfor %}
 ```
-- <int:pk>
+- `<`int:pk`>`
 ```python
 path('<int:pk>/',views.SchoolDetailView.as_view(), name='detail')
 # in this case, pk is school.id
@@ -104,5 +104,56 @@ path('<int:pk>/',views.SchoolDetailView.as_view(), name='detail')
   <p>{{student.name}} who is {{student.age}} years old</p>
 {% endfor %}
 ```
+
 3.CRUD Views
 ---------
+**C**reate **R**etrieve **U**pdate **D**elete
+```python
+from django.views.generic import CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+```
+- CBVs have template names they automatically look for (which is something you can overwrite with the template_name attribute)<br>
+-> school_form.html, school_confirm_delete.html, school_list.html etc.
+- Example
+```html
+    {% if not form.instance.pk %}
+    Create School
+    {% else %}
+    Update School
+    {% endif %}
+```
+- urls.py
+```python
+  ...
+  path('create/', views.SchoolCreateView.as_view(), name='create'),
+  path('update/<int:pk>/', views.SchoolUpdateView.as_view(), name='update'),
+  path('delete/<int:pk>/', views.SchoolDeleteView.as_view(), name='delete'),
+```
+
+1.Create
+```python
+class SchoolCreateView(CreateView):
+    fields = # clarify fields you want to create
+    model = # connect model
+```
+2.Update
+```python
+class SchoolUpdateView(UpdateView):
+    fields = # clarify fields you want to update
+    model = # connect model
+```
+```html
+<a href="{% url 'basic_app:update' pk=school_detail.pk %}">Update</a>
+```
+3.Delete
+```python
+class SchoolDeleteView(DeleteView):
+    model = # connect model
+    # once you successfully deleted a school,
+    # go to back to the list page
+    success_url = reverse_lazy('basic_app:list')
+```
+```html
+<a href="{% url 'basic_app:detail' pk=school.pk %}">Cancel</a>
+```
+
