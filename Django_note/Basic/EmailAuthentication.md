@@ -154,8 +154,99 @@ class UserRegistrationView(CreateView):
 ---------
 
 
-**- 페이지에서 인증 이메일 재발송 기능 제공**
+**- 재발송 뷰 생성**
+- 중복되는 메소드와 클래스변수 mixin에 선언
+```python
+# mixins.py
 
+from django.contrib import messages
+from django.contrib.auth.tokens import default_token_generator
+from django.shortcuts import render
+from userRegistration import settings
+
+class VerifyEmailMixin:
+    email_template_name = 'mySite/registration_verification.html'
+    token_generator = default_token_generator
+
+    def send_verification_email(self, user):
+        token = self.token_generator.make_token(user)
+        url = self.build_verification_link(user, token)
+        subject = 'Congratulations!'
+        message = 'Please verify your email.{}'.format(url) 
+        html_message = render(self.request, self.email_template_name,{'url':url}).content.decode('utf-8')
+        user.email_user(subject, message, settings.EMAIL_HOST_USER, html_message = html_message)
+        messages.info(self.request, 'we send a email. please verify your email')
+
+    def build_verification_link(self, user, token):
+        return '{}/mySite/{}/verify/{}/'.format(self.request.META.get('HTTP_ORIGIN'), user.pk, token)
+
+```
+
+```python
+# views.py
+
+from .mixins import VerifyEmailMixin
+
+class UserRegistrationView(VerifyEmailMixin, CreateView):
+    model = get_user_model()
+    form_class = UserRegistrationForm
+    success_url = reverse_lazy('mySite:index')
+    verify_url = '/mySite/verify'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if form.instance:
+            self.send_verification_email(form.instance)
+        return response
+        
+class ResendVerifyEmailView(VerifyEmailMixin, FormView):
+    model = get_user_model()
+    form_class = VerificationEmailForm
+    success_url = 'login'
+    # 해당 페이지로 자동 렌더링
+    template_name = 'mySite/resend_verify_email.html'
+
+    def form_valid(self, form):
+        email = form.cleaned_data['email']
+        try:
+            user = self.model.object.get(email=email)
+        except self.model.DoesNotExist:
+            messages.error(self.request, '알 수 없는 사용자 입니다.')
+        else:
+            self.send_verification_email(user)
+        return super().form_valid(form)
+```
+```python
+# forms.py
+
+# 폼의 필드는 유효성 검증을 할 때 정의된 default_validators 리스트의 각 원소들을 
+# 입력된 값을 전달하여 함수처럼 호출
+class VerificationEmailForm(forms.Form):
+        email = EmailField(widget=forms.EmailInput(attrs={'autofocus': True}), validators=(EmailField.default_validators + [RegisteredEmailValidator()]))
+```
+```python
+# validators.py
+
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+
+class RegisteredEmailValidator:
+    user_model = get_user_model()
+    code = 'invalid'
+
+    # 필드의 유효성 검증 필터는 __call__메소드를 오버라이드 해줘야함
+    def __call__(self, email):
+        try:
+            user = self.user_model.objects.get(email=email)
+        except self.user_model.DoesNotExist:
+            raise ValidationError('가입되지 않은 이메일입니다.', code=self.code)
+        else:
+            if user.is_active:
+                raise ValidationError('이미 인증되어 있습니다.', code=self.code)
+
+        return
+```
+**- 페이지 생성후 링크 연결**
 
 
 
