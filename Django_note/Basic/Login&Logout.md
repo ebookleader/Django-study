@@ -1,6 +1,7 @@
 ## Index
 1. 로그인
-2. 
+2. 로그아웃
+3. 사용자 인증여부 
 ---
 
 
@@ -62,4 +63,36 @@ authentication_form 변수에 LoginForm을 설정
 class UserLoginView(LoginView):
     authentication_form = LoginForm
     template_name = 'mySite/login_form.html'
+```
+
+2.로그아웃
+--------------
+**- auth의 로그아웃 사용**
+```python
+# views.py
+
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def user_logout(request):
+    logout(request)
+    return HttpResponseRedirect(reverse('index'))
+```
+
+3.사용자 인증여부 확인
+-------------------
+**- 로그인을 검사하여 접근을 통제**
+1. 데커레이터 사용 (함수형 뷰에서 사용)
+```python
+@login_required
+def example_view(request):
+    ...
+```
+2. 믹스인을 이용 (클래스형 뷰에서 사용)
+```python
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class example_view(LoginRequiredMixin, View):
+    ...
 ```
